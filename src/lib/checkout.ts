@@ -1,66 +1,46 @@
 import type { Brief, CartLine, VibeRead } from "./room-types";
 
-export type Address = {
-  name: string;
-  line1: string;
-  city: string;
-  postal: string;
-  country: "US" | "CA";
-};
-export type ShippingOption = "standard" | "express" | null;
-export type SessionStatus = "incomplete" | "ready_for_complete";
-
-export const FREE_SHIPPING_MIN = 150;
-
-export function shippingCost(option: ShippingOption, subtotal: number): number {
-  if (option === "express") return 24.95;
-  if (option === "standard") return subtotal >= FREE_SHIPPING_MIN ? 0 : 9.95;
-  return 0;
+export function secureHttpsUrl(
+  value: string | null | undefined,
+): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
 }
 
-export function addressComplete(a: Address): boolean {
-  return [a.name, a.line1, a.city, a.postal].every((v) => v.trim().length > 1);
-}
-
-export function computeSession(
-  lines: CartLine[],
-  address: Address,
-  option: ShippingOption,
-) {
-  const subtotal = lines.reduce((s, l) => s + l.variant.price * l.qty, 0);
-  const shipping = shippingCost(option, subtotal);
-  const tax = Math.round((subtotal + shipping) * 0.08 * 100) / 100;
-  const missing: string[] = [];
-  if (!addressComplete(address)) missing.push("Shipping address");
-  if (!option) missing.push("Shipping option");
-  const status: SessionStatus =
-    lines.length && !missing.length ? "ready_for_complete" : "incomplete";
-  return {
-    subtotal,
-    shipping,
-    tax,
-    total: subtotal + shipping + tax,
-    missing,
-    status,
-  };
+export function checkoutHandoffUrl(line: CartLine): string | null {
+  for (const candidate of [
+    line.variant.checkout_url,
+    line.product.continue_url,
+    line.product.product_url,
+  ]) {
+    const url = secureHttpsUrl(candidate);
+    if (url) return url;
+  }
+  return null;
 }
 
 export function beforeYouBuy(
   lines: CartLine[],
   vibe: VibeRead,
   brief: Brief,
-  address: Address,
+  country: string,
 ) {
   const styles = [vibe.primary_style, vibe.secondary_style];
   const offStyle = lines.filter(
-    (l) => !l.product.style_tags.some((s) => styles.includes(s)),
+    (line) => !line.product.style_tags.some((style) => styles.includes(style)),
   );
-  const overBudget = lines.filter((l) => l.variant.price > brief.budget);
+  const overBudget = lines.filter((line) => line.variant.price > brief.budget);
   const noShip = lines.filter(
-    (l) => !l.product.ships_to.includes(address.country),
+    (line) => !line.product.ships_to.includes(country),
   );
-  const noReturns = lines.filter((l) => !l.product.return_policy);
-  const names = (ls: CartLine[]) => ls.map((l) => l.product.title).join(", ");
+  const noReturns = lines.filter((line) => !line.product.return_policy);
+  const names = (matchingLines: CartLine[]) =>
+    matchingLines.map((line) => line.product.title).join(", ");
   const spaceWidth = brief.spaceWidth;
   const spaceCheck =
     spaceWidth === null
@@ -86,6 +66,7 @@ export function beforeYouBuy(
               details.join("; ") || `All items fit within ${spaceWidth} inches`,
           };
         })();
+
   return [
     {
       label: "Fits your room style",
@@ -106,8 +87,8 @@ export function beforeYouBuy(
       label: "Delivers to your location",
       ok: !noShip.length,
       detail: noShip.length
-        ? `Doesn't ship to ${address.country}: ${names(noShip)}`
-        : `All merchants ship to ${address.country}`,
+        ? `Doesn't ship to ${country}: ${names(noShip)}`
+        : `All merchants ship to ${country}`,
     },
     {
       label: "Return policy shown",

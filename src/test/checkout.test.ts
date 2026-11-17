@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  beforeYouBuy,
-  computeSession,
-  shippingCost,
-  type Address,
-} from "@/lib/checkout";
+import { beforeYouBuy, checkoutHandoffUrl } from "@/lib/checkout";
 import type {
   Brief,
   CartLine,
@@ -13,14 +8,6 @@ import type {
   Variant,
   VibeRead,
 } from "@/lib/room-types";
-
-const address: Address = {
-  name: "Sam Shopper",
-  line1: "12 Oak Street",
-  city: "Portland",
-  postal: "97201",
-  country: "US",
-};
 
 const product: Product = {
   id: "product-1",
@@ -47,7 +34,12 @@ const product: Product = {
   requires_review: false,
   variants: [],
 };
-const variant: Variant = { id: "variant-1", label: "Walnut", price: 200 };
+const variant: Variant = {
+  id: "variant-1",
+  label: "Walnut",
+  price: 200,
+  checkout_url: "https://merchant.example.com/variant-checkout",
+};
 const line: CartLine = { product, variant, qty: 1 };
 const brief: Brief = {
   goal: "specific",
@@ -73,32 +65,42 @@ const vibe: VibeRead = {
   demo: true,
 };
 
-describe("checkout preparation", () => {
-  it("calculates standard free shipping at the threshold and express shipping", () => {
-    expect(shippingCost("standard", 149.99)).toBe(9.95);
-    expect(shippingCost("standard", 150)).toBe(0);
-    expect(shippingCost("express", 50)).toBe(24.95);
+describe("merchant checkout handoff", () => {
+  it("prefers the first line variant checkout URL", () => {
+    expect(checkoutHandoffUrl(line)).toBe(
+      "https://merchant.example.com/variant-checkout",
+    );
   });
 
-  it("moves from incomplete to ready only when the cart, address and shipping are complete", () => {
-    expect(computeSession([line], address, null).status).toBe("incomplete");
+  it("falls back to product checkout URLs and rejects non-HTTPS URLs", () => {
+    const invalidVariantLine: CartLine = {
+      ...line,
+      variant: { ...variant, checkout_url: "http://insecure.example/checkout" },
+    };
+    expect(checkoutHandoffUrl(invalidVariantLine)).toBe(
+      "https://merchant.example.com/checkout",
+    );
+
+    const productUrlLine: CartLine = {
+      ...invalidVariantLine,
+      product: {
+        ...product,
+        continue_url: null,
+        product_url: "https://merchant.example.com/product",
+      },
+    };
+    expect(checkoutHandoffUrl(productUrlLine)).toBe(
+      "https://merchant.example.com/product",
+    );
     expect(
-      computeSession([line], { ...address, postal: "" }, "standard").status,
-    ).toBe("incomplete");
-
-    const complete = computeSession([line], address, "standard");
-    expect(complete.status).toBe("ready_for_complete");
-    expect(complete).toMatchObject({
-      subtotal: 200,
-      shipping: 0,
-      tax: 16,
-      total: 216,
-      missing: [],
-    });
-  });
-
-  it("keeps an empty cart incomplete even when the delivery details are complete", () => {
-    expect(computeSession([], address, "standard").status).toBe("incomplete");
+      checkoutHandoffUrl({
+        ...productUrlLine,
+        product: {
+          ...productUrlLine.product,
+          product_url: "javascript:alert(1)",
+        },
+      }),
+    ).toBeNull();
   });
 
   it("warns about oversized and unknown widths, and skips the check without a space width", () => {
@@ -119,7 +121,7 @@ describe("checkout preparation", () => {
       [line, tooWide, unknownWidth],
       vibe,
       brief,
-      address,
+      "US",
     ).find((item) => item.label === "Fits your space");
 
     expect(check).toMatchObject({
@@ -128,14 +130,14 @@ describe("checkout preparation", () => {
         "Too big: Wide sofa; Size not listed; check with seller: Unknown size",
     });
     expect(
-      beforeYouBuy([line], vibe, { ...brief, spaceWidth: null }, address).some(
+      beforeYouBuy([line], vibe, { ...brief, spaceWidth: null }, "US").some(
         (item) => item.label === "Fits your space",
       ),
     ).toBe(false);
   });
 
   it("marks the space check as passing when every known width fits", () => {
-    const check = beforeYouBuy([line], vibe, brief, address).find(
+    const check = beforeYouBuy([line], vibe, brief, "US").find(
       (item) => item.label === "Fits your space",
     );
     expect(check).toMatchObject({

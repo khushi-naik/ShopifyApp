@@ -78,6 +78,8 @@ npm run build
   in USD. Live availability, prices, ratings, reviews and discounts vary;
   Shopify may not provide every detail for every listing, and unknown ratings
   or use cases are not invented.
-- The cart and checkout screens let shoppers review shipping, estimated tax
-  and a pre-purchase checklist. They do not submit an order, collect payment or
-  contact a merchant.
+- The cart groups items by merchant and provides a secure checkout handoff when
+  the catalog supplies an HTTPS checkout or product URL. Shoppers review each
+  store's subtotal and refund policy, plus a “Before you buy” checklist.
+  Shipping and tax are set by each store. Room Match does not submit orders,
+  collect payment or contact merchants.

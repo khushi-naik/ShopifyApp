@@ -1,4 +1,11 @@
-import type { Brief, Category, ProductGroup, RankedMatch, VibeRead, Product } from "./room-types";
+import type {
+  Brief,
+  Category,
+  ProductGroup,
+  RankedMatch,
+  VibeRead,
+  Product,
+} from "./room-types";
 import { nearestTag } from "./room-types";
 
 /** Categories the shopper needs, derived from the brief and the vibe read. */
@@ -22,8 +29,10 @@ export function targetPalette(vibe: VibeRead): string[] {
 }
 
 export function passesHardFilters(p: Product, brief: Brief): boolean {
-  if (brief.setting === "indoor" && p.indoor_outdoor === "outdoor") return false;
-  if (brief.setting === "outdoor" && p.indoor_outdoor === "indoor") return false;
+  if (brief.setting === "indoor" && p.indoor_outdoor === "outdoor")
+    return false;
+  if (brief.setting === "outdoor" && p.indoor_outdoor === "indoor")
+    return false;
   if (p.price > brief.budget) return false;
   if (brief.inStock && !p.in_stock) return false;
   if (brief.rated4 && p.rating < 4) return false;
@@ -33,9 +42,11 @@ export function passesHardFilters(p: Product, brief: Brief): boolean {
 
 function gapLabel(cat: Category, vibe: VibeRead): string | null {
   const g = vibe.gaps.find((x) => x.category === cat);
-  if (g && vibe.space_state === "empty") return `Fills the ${g.area.toLowerCase()}`;
+  if (g && vibe.space_state === "empty")
+    return `Fills the ${g.area.toLowerCase()}`;
   const s = vibe.swaps.find((x) => x.category === cat);
-  if (s && vibe.space_state === "furnished") return `Upgrades the ${s.current.toLowerCase()}`;
+  if (s && vibe.space_state === "furnished")
+    return `Upgrades the ${s.current.toLowerCase()}`;
   return null;
 }
 
@@ -69,21 +80,45 @@ export function scoreProduct(p: Product, brief: Brief, vibe: VibeRead) {
     });
   }
   const room = vibe.room_type.toLowerCase();
-  if (p.room_types.some((r) => room.includes(r) || r.includes(room))) score += 1.5;
+  const matchingRoom = p.room_types.find(
+    (r) => room.includes(r) || r.includes(room),
+  );
+  if (matchingRoom) {
+    score += 2;
+    reasons.push({ text: `Suited to your ${matchingRoom}`, weight: 3.5 });
+  }
   score += (p.rating - 3) * 1;
   score += Math.log10(Math.max(p.review_count, 1)) * 0.5;
+  score += Math.max(0, 1 - p.price / brief.budget) * 2.5;
+  if (p.quality_note.trim()) {
+    score += 0.75;
+    reasons.push({ text: "Quality details included", weight: 2 });
+  }
   if (p.discount_percent > 0) {
     score += (p.discount_percent / 10) * 0.8;
     reasons.push({ text: `${p.discount_percent}% off right now`, weight: 2.5 });
   }
-  if (p.price <= brief.budget) reasons.push({ text: "Under budget", weight: 1 });
-  if (p.rating >= 4.5) reasons.push({ text: `Rated ${p.rating} by ${p.review_count} buyers`, weight: 1.5 });
+  if (p.price <= brief.budget * 0.75) {
+    reasons.push({ text: "Good value under your budget", weight: 1.75 });
+  } else if (p.price <= brief.budget) {
+    reasons.push({ text: "Under budget", weight: 1 });
+  }
+  if (p.rating >= 4.5)
+    reasons.push({
+      text: `Rated ${p.rating} by ${p.review_count} buyers`,
+      weight: 1.5,
+    });
 
   reasons.sort((a, b) => b.weight - a.weight);
   return { score, reasons: reasons.slice(0, 3).map((r) => r.text) };
 }
 
-export function rankGroups(groups: ProductGroup[], brief: Brief, vibe: VibeRead, limit = 6): RankedMatch[] {
+export function rankGroups(
+  groups: ProductGroup[],
+  brief: Brief,
+  vibe: VibeRead,
+  limit = 6,
+): RankedMatch[] {
   const needed = neededCategories(brief, vibe);
   const ranked: RankedMatch[] = [];
   for (const g of groups) {
@@ -95,13 +130,20 @@ export function rankGroups(groups: ProductGroup[], brief: Brief, vibe: VibeRead,
       .sort((a, b) => b.score - a.score || a.o.price - b.o.price);
     const best = scored[0];
     if (!best) continue;
-    ranked.push({ product: best.o, otherOffers: offers.length - 1, score: best.score, reasons: best.reasons });
+    ranked.push({
+      product: best.o,
+      otherOffers: offers.length - 1,
+      score: best.score,
+      reasons: best.reasons,
+    });
   }
   ranked.sort((a, b) => b.score - a.score);
   if (brief.goal === "whole") {
     // Spread a whole-room plan across categories.
     const seen = new Set<string>();
-    const spread = ranked.filter((r) => (seen.has(r.product.category) ? false : seen.add(r.product.category)));
+    const spread = ranked.filter((r) =>
+      seen.has(r.product.category) ? false : seen.add(r.product.category),
+    );
     const rest = ranked.filter((r) => !spread.includes(r));
     return [...spread, ...rest].slice(0, limit);
   }

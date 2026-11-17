@@ -5,19 +5,35 @@ shopping brief, and recommends decor from a demo catalog.
 
 ## Requirements
 
-- Node.js 22.12 or newer
+- Node.js 22.12 or newer (the project selects Node 22 in `.nvmrc`)
 - npm (included with Node.js)
 
 ## Install and run
 
-From the repository root:
+From the repository root, use nvm to select the project’s Node version:
 
 ```sh
+nvm install
+nvm use
+node --version
 npm install
 npm run dev
 ```
 
-Open the local URL printed by Vite in the terminal.
+Confirm `node --version` prints `v22.12.0` or newer before starting Vite.
+Open the local URL printed by Vite in the terminal. Stop the development
+server with `Ctrl+C`.
+
+If nvm is not installed, install Node.js 22.12 or newer using your preferred
+Node version manager or the official Node.js installer, then open a new
+terminal and confirm `node --version` before running `npm install`.
+
+To start the app with a temporary Node 22 runtime without changing your
+default Node installation, run:
+
+```sh
+npm exec --yes --package=node@22 -- npm run dev
+```
 
 The repository also includes a Bun lockfile. If you use Bun, install and run
 with `bun install --frozen-lockfile` and `bun run dev`.

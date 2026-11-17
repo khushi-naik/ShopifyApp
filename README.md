@@ -1,7 +1,7 @@
 # Room Match
 
 Room Match is a TanStack Start app that reads a room photo, asks for a short
-shopping brief, and recommends decor from a demo catalog.
+shopping brief, and recommends live products from Shopify's Global Catalog.
 
 ## Requirements
 
@@ -65,9 +65,16 @@ npm run build
   indoor or outdoor use. Recommendations are filtered against those
   requirements, then ranked by room need, style, palette, rating, review count,
   value, quality details and discounts.
-- Product and seller data is mock data (40 offers across 24 product groups),
-  not a live Shopify catalog. Prices, stock, ratings, reviews and discounts are
-  illustrative.
+- Product and seller data comes from Shopify's live UCP Global Catalog using
+  the server-side JSON-RPC `search_catalog` tool. The app calls Shopify's
+  catalog endpoint directly so it also works in the Cloudflare Worker runtime;
+  it does not spawn the local UCP CLI as a subprocess. The globally installed
+  UCP CLI is useful for local catalog exploration but is not required to run
+  the app (the CLI itself requires Node.js 22.19 or newer).
+- Catalog search currently requests products that ship to the US and prices
+  in USD. Live availability, prices, ratings, reviews and discounts vary;
+  Shopify may not provide every detail for every listing, and unknown ratings
+  or use cases are not invented.
 - The cart and checkout screens let shoppers review shipping, estimated tax
   and a pre-purchase checklist. They do not submit an order, collect payment or
   contact a merchant.

@@ -103,7 +103,11 @@ function Index() {
       setStage("matches");
     } catch (reason) {
       console.error("Could not find room matches:", reason);
-      setError("We couldn't load product matches. Please try again.");
+      setError(
+        reason instanceof Error
+          ? `We couldn't load live Shopify product matches. ${reason.message}`
+          : "We couldn't load live Shopify product matches. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -294,8 +298,8 @@ function Index() {
                     Your best-fit finds
                   </h1>
                   <p className="mt-2 text-muted-foreground">
-                    Ranked by room fit, style, value, quality details and
-                    shopper feedback.
+                    Live Shopify listings ranked by room fit, style, value,
+                    quality details and available shopper feedback.
                   </p>
                 </div>
                 <Button

@@ -31,11 +31,15 @@ export function targetPalette(vibe: VibeRead): string[] {
 export function passesHardFilters(p: Product, brief: Brief): boolean {
   if (brief.setting === "indoor" && p.indoor_outdoor === "outdoor")
     return false;
-  if (brief.setting === "outdoor" && p.indoor_outdoor === "indoor")
+  if (
+    brief.setting === "outdoor" &&
+    p.indoor_outdoor !== "outdoor" &&
+    p.indoor_outdoor !== "both"
+  )
     return false;
   if (p.price > brief.budget) return false;
   if (brief.inStock && !p.in_stock) return false;
-  if (brief.rated4 && p.rating < 4) return false;
+  if (brief.rated4 && (p.rating === null || p.rating < 4)) return false;
   if (brief.onSale && p.discount_percent <= 0) return false;
   return true;
 }
@@ -87,12 +91,12 @@ export function scoreProduct(p: Product, brief: Brief, vibe: VibeRead) {
     score += 2;
     reasons.push({ text: `Suited to your ${matchingRoom}`, weight: 3.5 });
   }
-  score += (p.rating - 3) * 1;
-  score += Math.log10(Math.max(p.review_count, 1)) * 0.5;
+  if (p.rating !== null) score += p.rating - 3;
+  score += Math.log10(Math.max(p.review_count ?? 0, 1)) * 0.5;
   score += Math.max(0, 1 - p.price / brief.budget) * 2.5;
   if (p.quality_note.trim()) {
     score += 0.75;
-    reasons.push({ text: "Quality details included", weight: 2 });
+    reasons.push({ text: "Product details available", weight: 2 });
   }
   if (p.discount_percent > 0) {
     score += (p.discount_percent / 10) * 0.8;
@@ -103,9 +107,12 @@ export function scoreProduct(p: Product, brief: Brief, vibe: VibeRead) {
   } else if (p.price <= brief.budget) {
     reasons.push({ text: "Under budget", weight: 1 });
   }
-  if (p.rating >= 4.5)
+  if (p.rating !== null && p.rating >= 4.5)
     reasons.push({
-      text: `Rated ${p.rating} by ${p.review_count} buyers`,
+      text:
+        p.review_count === null
+          ? `Rated ${p.rating} stars`
+          : `Rated ${p.rating} by ${p.review_count} shoppers`,
       weight: 1.5,
     });
 

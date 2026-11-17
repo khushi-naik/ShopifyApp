@@ -69,6 +69,12 @@ describe("room match ranking", () => {
     expect(passesHardFilters(product({ indoor_outdoor: "both" }), brief)).toBe(
       true,
     );
+    expect(
+      passesHardFilters(product({ indoor_outdoor: "unknown" }), {
+        ...brief,
+        setting: "outdoor",
+      }),
+    ).toBe(false);
   });
 
   it("selects the better-priced eligible seller offer and keeps seller count", () => {
@@ -100,6 +106,10 @@ describe("room match ranking", () => {
       {
         product_key: "over-budget",
         offers: [product({ id: "over-budget", price: 600 })],
+      },
+      {
+        product_key: "no-rating",
+        offers: [product({ id: "no-rating", rating: null })],
       },
     ];
 

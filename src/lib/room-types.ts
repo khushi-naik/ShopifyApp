@@ -53,7 +53,16 @@ export type Brief = {
   setting: "indoor" | "outdoor";
 };
 
-export type Variant = { id: string; label: string; price: number };
+export type Variant = {
+  id: string;
+  label: string;
+  price: number;
+  compare_at_price?: number | null;
+  discount_percent?: number;
+  available?: boolean;
+  product_url?: string | null;
+  checkout_url?: string | null;
+};
 
 export type Product = {
   id: string;
@@ -64,17 +73,18 @@ export type Product = {
   style_tags: Style[];
   palette_tags: string[];
   room_types: string[];
-  indoor_outdoor: "indoor" | "outdoor" | "both";
+  indoor_outdoor: "indoor" | "outdoor" | "both" | "unknown";
   price: number;
   compare_at_price: number | null;
   discount_percent: number;
-  rating: number;
-  review_count: number;
+  rating: number | null;
+  review_count: number | null;
   quality_note: string;
   in_stock: boolean;
   ships_to: string[];
   image_url: string;
-  continue_url: string;
+  continue_url?: string | null;
+  product_url?: string | null;
   return_policy: string | null;
   requires_review: boolean;
   variants: Variant[];
@@ -111,7 +121,11 @@ export const PALETTE_TAGS: Record<string, [number, number, number]> = {
 
 export function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace("#", "").padEnd(6, "0").slice(0, 6);
-  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) || 0) as [number, number, number];
+  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) || 0) as [
+    number,
+    number,
+    number,
+  ];
 }
 
 export function nearestTag(hex: string): string {

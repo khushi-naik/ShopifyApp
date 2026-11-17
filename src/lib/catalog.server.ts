@@ -1,127 +1,522 @@
-/**
- * Mock catalog shaped after Shopify's Global Catalog MCP (search_catalog / get_product).
- * Server-only: seed data lives here, never in the browser bundle.
- */
-import type { Category, Product, ProductGroup, Style, Variant } from "./room-types";
+import {
+  PALETTE_TAGS,
+  type Category,
+  type Product,
+  type ProductGroup,
+  type Style,
+  type Variant,
+} from "./room-types";
 
-type Base = {
-  key: string;
-  title: string;
-  category: Category;
-  styles: Style[];
-  palette: string[];
-  rooms: string[];
-  io: "indoor" | "outdoor" | "both";
-  price: number;
-  photo: string;
-  quality: string;
-  variants: string[];
-};
+const UCP_ENDPOINT = "https://catalog.shopify.com/api/ucp/mcp";
+const UCP_AGENT_PROFILE =
+  "https://shopify.dev/ucp/agent-profiles/2026-08-25/valid-with-capabilities.json";
+const UCP_RESULT_LIMIT = 30;
 
-const u = (id: string) => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=800&q=70`;
-
-const BASES: Base[] = [
-  { key: "walnut-lounge-chair", title: "Walnut Lounge Chair", category: "seating", styles: ["Mid-Century Modern", "Scandinavian"], palette: ["walnut", "rust"], rooms: ["living room", "bedroom"], io: "indoor", price: 389, photo: "1567538096630-e0c55bd6374c", quality: "Solid walnut frame, kiln-dried", variants: ["Rust wool", "Oat linen", "Charcoal"] },
-  { key: "linen-sofa", title: "Low Linen Sofa, 3-Seat", category: "seating", styles: ["Scandinavian", "Minimalist"], palette: ["oat", "cream"], rooms: ["living room"], io: "indoor", price: 1290, photo: "1555041469-a586c61ea9bc", quality: "Removable washable covers", variants: ["Oat", "Sage", "Stone"] },
-  { key: "rattan-accent-chair", title: "Rattan Peacock Accent Chair", category: "seating", styles: ["Boho"], palette: ["beige", "oat"], rooms: ["living room", "bedroom"], io: "indoor", price: 249, photo: "1586023492125-27b2c045efd7", quality: "Hand-woven rattan", variants: ["Natural"] },
-  { key: "jute-rug", title: "Chunky Jute Rug", category: "rugs", styles: ["Boho", "Scandinavian"], palette: ["beige", "oat"], rooms: ["living room", "bedroom", "dining room"], io: "indoor", price: 179, photo: "1600166898405-da9535204843", quality: "Natural fibers, hand-braided", variants: ["5x8", "8x10"] },
-  { key: "vintage-wool-rug", title: "Vintage-Wash Wool Rug", category: "rugs", styles: ["Traditional", "Mid-Century Modern"], palette: ["rust", "terracotta", "navy"], rooms: ["living room", "dining room", "bedroom"], io: "indoor", price: 329, photo: "1575414003591-ece8d0416c7a", quality: "Low pile, high traffic friendly", variants: ["5x8", "8x10", "9x12"] },
-  { key: "outdoor-stripe-rug", title: "Striped Outdoor Rug", category: "rugs", styles: ["Boho", "Minimalist"], palette: ["navy", "cream"], rooms: ["patio", "balcony"], io: "outdoor", price: 99, photo: "1600210492486-724fe5c67fb0", quality: "UV and mildew resistant", variants: ["4x6", "6x9"] },
-  { key: "arc-floor-lamp", title: "Brass Arc Floor Lamp", category: "lighting", styles: ["Mid-Century Modern", "Industrial"], palette: ["brass", "black"], rooms: ["living room"], io: "indoor", price: 219, photo: "1507473885765-e6ed057f782c", quality: "Dimmable, weighted marble base", variants: ["Brass", "Matte black"] },
-  { key: "paper-pendant", title: "Paper Lantern Pendant", category: "lighting", styles: ["Scandinavian", "Minimalist"], palette: ["white", "cream"], rooms: ["living room", "bedroom", "dining room"], io: "indoor", price: 89, photo: "1513506003901-1e6a229e2d15", quality: "Hand-pleated rice paper", variants: ["Small", "Large"] },
-  { key: "cage-sconce", title: "Cage Wall Sconce", category: "lighting", styles: ["Industrial"], palette: ["black", "charcoal"], rooms: ["bedroom", "hallway", "living room"], io: "both", price: 74, photo: "1524484485831-a92ffc0de03f", quality: "Damp-rated, plug-in option", variants: ["Black", "Bronze"] },
-  { key: "abstract-print", title: "Earth-Tone Abstract Print", category: "wall art", styles: ["Boho", "Mid-Century Modern"], palette: ["terracotta", "beige", "rust"], rooms: ["living room", "bedroom"], io: "indoor", price: 129, photo: "1578500494198-246f612d3b3d", quality: "Archival ink, oak frame", variants: ["18x24", "24x36"] },
-  { key: "landscape-canvas", title: "Quiet Landscape Canvas", category: "wall art", styles: ["Traditional", "Scandinavian"], palette: ["sage", "cream", "green"], rooms: ["living room", "bedroom", "dining room"], io: "indoor", price: 165, photo: "1513519245088-0e12902e5a38", quality: "Gallery-wrapped canvas", variants: ["24x30", "30x40"] },
-  { key: "round-mirror", title: "Round Brass Mirror", category: "mirrors", styles: ["Mid-Century Modern", "Minimalist"], palette: ["brass"], rooms: ["living room", "hallway", "bedroom", "bathroom"], io: "indoor", price: 149, photo: "1618220179428-22790b461013", quality: "Beveled glass, steel frame", variants: ["24 in", "30 in"] },
-  { key: "arched-floor-mirror", title: "Arched Floor Mirror", category: "mirrors", styles: ["Boho", "Traditional"], palette: ["black", "walnut"], rooms: ["bedroom", "hallway"], io: "indoor", price: 259, photo: "1616486338812-3dadae4b4ace", quality: "Shatter-resistant backing", variants: ["Black", "Walnut"] },
-  { key: "oval-coffee-table", title: "Oval Walnut Coffee Table", category: "tables", styles: ["Mid-Century Modern"], palette: ["walnut"], rooms: ["living room"], io: "indoor", price: 299, photo: "1532372320572-cda25653a26d", quality: "Walnut veneer, tapered legs", variants: ["Walnut"] },
-  { key: "steel-side-table", title: "Steel & Oak Side Table", category: "tables", styles: ["Industrial", "Minimalist"], palette: ["black", "oat"], rooms: ["living room", "bedroom"], io: "indoor", price: 119, photo: "1503602642458-232111445657", quality: "Powder-coated steel", variants: ["Black / Oak"] },
-  { key: "teak-patio-table", title: "Teak Patio Bistro Table", category: "tables", styles: ["Traditional", "Scandinavian"], palette: ["walnut", "beige"], rooms: ["patio", "balcony"], io: "outdoor", price: 239, photo: "1600585154340-be6161a56a0c", quality: "Grade-A teak, weatherproof", variants: ["Natural"] },
-  { key: "credenza", title: "Slatted Media Credenza", category: "storage", styles: ["Mid-Century Modern", "Scandinavian"], palette: ["walnut", "oat"], rooms: ["living room", "bedroom"], io: "indoor", price: 549, photo: "1594026112284-02bb6f3352fe", quality: "Soft-close doors, cable cutouts", variants: ["Walnut", "Oak"] },
-  { key: "woven-baskets", title: "Woven Storage Baskets, Set of 3", category: "storage", styles: ["Boho", "Scandinavian"], palette: ["beige", "oat"], rooms: ["living room", "bedroom", "bathroom"], io: "indoor", price: 59, photo: "1595428774223-ef52624120d2", quality: "Seagrass, sturdy handles", variants: ["Natural"] },
-  { key: "linen-throw", title: "Stonewashed Linen Throw", category: "textiles", styles: ["Scandinavian", "Minimalist", "Boho"], palette: ["sage", "oat", "cream"], rooms: ["living room", "bedroom"], io: "indoor", price: 69, photo: "1540932239986-30128078f3c5", quality: "European flax, prewashed", variants: ["Sage", "Oat", "Terracotta"] },
-  { key: "kilim-pillows", title: "Kilim Pillow Covers, Pair", category: "textiles", styles: ["Boho", "Traditional"], palette: ["rust", "terracotta", "navy"], rooms: ["living room", "bedroom"], io: "indoor", price: 48, photo: "1584100936595-c0654b55a2e2", quality: "Hand-loomed cotton wool", variants: ["20x20"] },
-  { key: "fiddle-leaf", title: "Faux Fiddle Leaf Fig, 6 ft", category: "plants", styles: ["Boho", "Mid-Century Modern", "Scandinavian"], palette: ["green", "sage"], rooms: ["living room", "bedroom"], io: "indoor", price: 139, photo: "1485955900006-10f4d324d411", quality: "Realistic, no watering", variants: ["5 ft", "6 ft"] },
-  { key: "olive-tree", title: "Potted Olive Tree", category: "plants", styles: ["Traditional", "Minimalist"], palette: ["sage", "green", "terracotta"], rooms: ["living room", "patio"], io: "both", price: 119, photo: "1463320726281-696a485928c7", quality: "Live plant, ships in nursery pot", variants: ["3 ft", "4 ft"] },
-  { key: "ceramic-vases", title: "Matte Ceramic Vase Trio", category: "decor", styles: ["Minimalist", "Scandinavian"], palette: ["cream", "white", "sage"], rooms: ["living room", "bedroom", "dining room"], io: "indoor", price: 54, photo: "1612196808214-b8e1d6145a8c", quality: "Glazed stoneware", variants: ["Cream", "Sage"] },
-  { key: "brass-candles", title: "Brass Candleholder Set", category: "decor", styles: ["Mid-Century Modern", "Traditional"], palette: ["brass"], rooms: ["dining room", "living room"], io: "indoor", price: 42, photo: "1602874801007-bd458bb1b8b6", quality: "Solid brass, lacquered", variants: ["Set of 3"] },
-];
-
-const MERCHANTS = ["Hearth & Grain", "Oak Lane Home", "Field Supply Co.", "Nest Theory", "Kindred Living"];
-
-const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-
-let n = 9_100_000_000;
-function makeOffer(b: Base, merchantIdx: number, variant: 0 | 1): Product {
-  const id = `gid://shopify/Product/${n++}`;
-  const merchant = MERCHANTS[merchantIdx % MERCHANTS.length] ?? "Hearth & Grain";
-  // Deterministic variation between merchants.
-  const priceShift = variant === 0 ? 1 : 0.93 + ((merchantIdx * 7) % 15) / 100;
-  const price = Math.round(b.price * priceShift);
-  const onSale = (b.key.length + merchantIdx + variant) % 3 === 0;
-  const compare = onSale ? Math.round(price / 0.8) : null;
-  const discount = compare ? Math.round((1 - price / compare) * 100) : 0;
-  const rating = Math.round((3.7 + ((b.key.length * (merchantIdx + 3)) % 13) / 10) * 10) / 10;
-  const variants: Variant[] = b.variants.map((label, i) => ({
-    id: `gid://shopify/ProductVariant/${n}${i}`,
-    label,
-    price: Math.round(price * (1 + i * 0.12)),
-  }));
-  return {
-    id,
-    product_key: b.key,
-    title: b.title,
-    merchant,
-    category: b.category,
-    style_tags: b.styles,
-    palette_tags: b.palette,
-    room_types: b.rooms,
-    indoor_outdoor: b.io,
-    price,
-    compare_at_price: compare,
-    discount_percent: discount,
-    rating: Math.min(rating, 4.9),
-    review_count: 20 + ((b.key.length * 37 + merchantIdx * 113) % 900),
-    quality_note: b.quality,
-    in_stock: (b.key.length + merchantIdx) % 7 !== 0,
-    ships_to: merchantIdx % 4 === 3 ? ["US"] : ["US", "CA"],
-    image_url: u(b.photo),
-    continue_url: `https://${slug(merchant)}.example.com/checkouts/c/${slug(b.key)}-${variant}`,
-    return_policy: merchantIdx % 5 === 4 ? null : merchantIdx % 2 ? "Free 30-day returns" : "60-day returns, $15 restocking",
-    requires_review: b.key === "linen-sofa" && variant === 1,
-    variants,
-  };
-}
-
-export const CATALOG: Product[] = BASES.flatMap((b, i) => [
-  makeOffer(b, i, 0),
-  ...(i < 16 ? [makeOffer(b, i + 2, 1)] : []),
-]);
-
-export type SearchCatalogRequest = {
+type SearchCatalogRequest = {
   catalog: {
     query: string;
-    filters: { ships_to: { country: string }; available: boolean };
+    filters: {
+      ships_to: { country: string };
+      available?: boolean;
+      price: { max: number };
+      rating?: { variant: { min: number; min_count: number } };
+    };
+    context: {
+      address_country: string;
+      currency: string;
+      intent: string;
+    };
+    pagination: { limit: number };
   };
 };
 
-/** Mirrors Shopify's search_catalog: query + filters, results grouped by product key. */
-export function searchCatalog(req: SearchCatalogRequest): ProductGroup[] {
-  const { query, filters } = req.catalog;
-  const terms = query.toLowerCase().split(/[\s,]+/).filter(Boolean);
-  const hits = CATALOG.filter((p) => {
-    if (!p.ships_to.includes(filters.ships_to.country)) return false;
-    if (filters.available && !p.in_stock) return false;
-    if (!terms.length) return true;
-    const hay = [p.title, p.category, ...p.style_tags, ...p.palette_tags, ...p.room_types].join(" ").toLowerCase();
-    return terms.some((t) => hay.includes(t));
-  });
-  const groups = new Map<string, Product[]>();
-  for (const p of hits) groups.set(p.product_key as string, [...(groups.get(p.product_key) ?? []), p]);
-  return Array.from(groups, ([product_key, offers]) => ({ product_key, offers }));
+type UcpPrice = { amount?: unknown; currency?: unknown };
+type UcpRating = { value?: unknown; count?: unknown };
+type UcpSeller = {
+  name?: unknown;
+  domain?: unknown;
+  links?: unknown;
+};
+type UcpVariant = {
+  id?: unknown;
+  title?: unknown;
+  description?: unknown;
+  options?: unknown;
+  price?: UcpPrice;
+  list_price?: UcpPrice;
+  availability?: { available?: unknown };
+  seller?: UcpSeller;
+  url?: unknown;
+  checkout_url?: unknown;
+  media?: unknown;
+  rating?: UcpRating;
+};
+type UcpProduct = {
+  id?: unknown;
+  title?: unknown;
+  description?: unknown;
+  url?: unknown;
+  categories?: unknown;
+  rating?: UcpRating;
+  media?: unknown;
+  metadata?: unknown;
+  variants?: unknown;
+};
+type UcpCatalogResult = {
+  products?: unknown;
+  messages?: unknown;
+};
+type UcpMcpResponse = {
+  error?: { message?: unknown };
+  result?: {
+    isError?: unknown;
+    content?: unknown;
+    structuredContent?: UcpCatalogResult;
+  };
+};
+
+type RecordValue = Record<string, unknown>;
+
+function asRecord(value: unknown): RecordValue | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as RecordValue)
+    : null;
 }
 
-/** Mirrors Shopify's get_product: full product with variants. */
-export function getProduct(id: string): Product | null {
-  return CATALOG.find((p) => p.id === id) ?? null;
+function asString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function stripMarkup(value: string): string {
+  return value
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;|&#160;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function collectText(value: unknown): string[] {
+  if (typeof value === "string") {
+    const text = stripMarkup(value);
+    return text ? [text] : [];
+  }
+  if (Array.isArray(value)) return value.flatMap(collectText);
+  const record = asRecord(value);
+  return record ? Object.values(record).flatMap(collectText) : [];
+}
+
+function getDescription(value: unknown): string {
+  const record = asRecord(value);
+  return collectText(record?.["plain"] ?? record?.["html"])[0] ?? "";
+}
+
+function getMetadataText(value: unknown): string[] {
+  const metadata = asRecord(value);
+  if (!metadata) return [];
+  return [
+    ...collectText(metadata["attributes"]),
+    ...collectText(metadata["tech_specs"]),
+    ...collectText(metadata["top_features"]),
+    ...collectText(metadata["unique_selling_points"]),
+  ];
+}
+
+function getQualityNote(value: unknown, description: string): string {
+  const metadata = asRecord(value);
+  for (const key of [
+    "unique_selling_points",
+    "top_features",
+    "tech_specs",
+    "attributes",
+  ]) {
+    const detail = collectText(metadata?.[key])[0];
+    if (detail) return detail.slice(0, 180);
+  }
+  return description.slice(0, 180);
+}
+
+function getImage(value: unknown): string | null {
+  if (!Array.isArray(value)) return null;
+  const media = value
+    .map(asRecord)
+    .filter((item): item is RecordValue => item !== null);
+  const image = media.find((item) => item["type"] === "image") ?? media[0];
+  return secureUrl(image?.["url"]);
+}
+
+function secureUrl(value: unknown): string | null {
+  const text = asString(value);
+  if (!text) return null;
+  try {
+    const url = new URL(text);
+    return url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function priceInUsd(value: unknown): number | null {
+  const price = asRecord(value);
+  const amount = price?.["amount"];
+  if (
+    typeof amount !== "number" ||
+    !Number.isFinite(amount) ||
+    price?.["currency"] !== "USD"
+  ) {
+    return null;
+  }
+  return amount / 100;
+}
+
+function ratingInfo(value: unknown): {
+  value: number | null;
+  count: number | null;
+} {
+  const rating = asRecord(value);
+  const ratingValue = rating?.["value"];
+  const count = rating?.["count"];
+  return {
+    value:
+      typeof ratingValue === "number" && Number.isFinite(ratingValue)
+        ? ratingValue
+        : null,
+    count: typeof count === "number" && Number.isFinite(count) ? count : null,
+  };
+}
+
+function optionLabel(value: unknown): string | null {
+  if (!Array.isArray(value)) return null;
+  const labels = value
+    .map(asRecord)
+    .filter((option): option is RecordValue => option !== null)
+    .map((option) => asString(option["label"]))
+    .filter((label): label is string => label !== null);
+  return labels.length ? labels.join(" / ") : null;
+}
+
+function refundPolicy(value: unknown): string | null {
+  if (!Array.isArray(value)) return null;
+  for (const link of value) {
+    const record = asRecord(link);
+    if (record?.["type"] === "refund_policy") {
+      return secureUrl(record["url"]);
+    }
+  }
+  return null;
+}
+
+const CATEGORY_MATCHERS: Array<[Category, RegExp]> = [
+  ["seating", /\b(?:sofa|couch|chair|armchair|bench|ottoman|stool|seating)\b/i],
+  ["rugs", /\b(?:rugs?|carpets?|runners?|doormats?)\b/i],
+  ["lighting", /\b(?:lighting|lamps?|sconces?|pendants?|chandeliers?)\b/i],
+  ["wall art", /\b(?:wall art|prints?|posters?|canvases?|wall decor)\b/i],
+  ["mirrors", /\bmirrors?\b/i],
+  ["tables", /\b(?:tables?|desks?)\b/i],
+  ["storage", /\b(?:storage|cabinets?|shelves|bookcases?|baskets?)\b/i],
+  [
+    "textiles",
+    /\b(?:textiles?|pillows?|cushions?|blankets?|throws?|curtains?)\b/i,
+  ],
+  ["plants", /\b(?:plants?|planters?|trees?)\b/i],
+  ["decor", /\b(?:vases?|candles?|sculptures?|figurines?|decorative)\b/i],
+];
+
+function inferCategory(text: string): Category {
+  return (
+    CATEGORY_MATCHERS.find(([, pattern]) => pattern.test(text))?.[0] ?? "decor"
+  );
+}
+
+const STYLE_MATCHERS: Array<[Style, RegExp]> = [
+  ["Mid-Century Modern", /\bmid[- ]century\b/i],
+  ["Boho", /\b(?:boho|bohemian)\b/i],
+  ["Minimalist", /\bminimal(?:ist|ism)?\b/i],
+  ["Scandinavian", /\b(?:scandinavian|scandi|nordic)\b/i],
+  ["Traditional", /\b(?:traditional|classic)\b/i],
+  ["Industrial", /\bindustrial\b/i],
+];
+
+function inferStyles(text: string): Style[] {
+  return STYLE_MATCHERS.filter(([, pattern]) => pattern.test(text)).map(
+    ([style]) => style,
+  );
+}
+
+const PALETTE_ALIASES: Record<string, string[]> = {
+  cream: ["cream", "ivory"],
+  white: ["white"],
+  beige: ["beige", "tan", "taupe"],
+  oat: ["oat"],
+  walnut: ["walnut"],
+  terracotta: ["terracotta"],
+  rust: ["rust"],
+  sage: ["sage"],
+  green: ["green", "olive"],
+  navy: ["navy"],
+  charcoal: ["charcoal"],
+  black: ["black"],
+  brass: ["brass", "gold", "bronze"],
+  gray: ["gray", "grey"],
+};
+
+function inferPalette(text: string): string[] {
+  return Object.keys(PALETTE_TAGS).filter((tag) =>
+    (PALETTE_ALIASES[tag] ?? [tag]).some((alias) =>
+      new RegExp(`\\b${alias}\\b`, "i").test(text),
+    ),
+  );
+}
+
+const ROOM_TYPES = [
+  "living room",
+  "bedroom",
+  "dining room",
+  "bathroom",
+  "patio",
+  "balcony",
+  "hallway",
+  "nursery",
+  "home office",
+];
+
+function inferRoomTypes(text: string): string[] {
+  return ROOM_TYPES.filter((room) => text.toLowerCase().includes(room));
+}
+
+function inferUseCase(text: string): Product["indoor_outdoor"] {
+  const outdoor =
+    /\b(?:outdoor|patio|garden|deck|weatherproof|weather[- ]resistant|uv[- ]resistant|mildew[- ]resistant)\b/i.test(
+      text,
+    );
+  const indoor =
+    /\b(?:indoor|living room|bedroom|dining room|bathroom|interior)\b/i.test(
+      text,
+    );
+  if (indoor && outdoor) return "both";
+  if (outdoor) return "outdoor";
+  if (indoor) return "indoor";
+  return "unknown";
+}
+
+function productRating(values: unknown[], fallback: unknown) {
+  const productRating = ratingInfo(fallback);
+  const variantRatings = values
+    .map(ratingInfo)
+    .filter(
+      (rating): rating is { value: number; count: number | null } =>
+        rating.value !== null,
+    )
+    .sort((a, b) => b.value - a.value);
+  const bestVariantRating = variantRatings[0];
+  return {
+    value: productRating.value ?? bestVariantRating?.value ?? null,
+    count: productRating.count ?? bestVariantRating?.count ?? null,
+  };
+}
+
+function normalizeVariant(
+  product: UcpProduct,
+  value: UcpVariant,
+): Variant | null {
+  const id = asString(value.id);
+  const price = priceInUsd(value.price);
+  const productUrl = secureUrl(value.url) ?? secureUrl(product.url);
+  const checkoutUrl = secureUrl(value.checkout_url);
+  if (!id || price === null || (!productUrl && !checkoutUrl)) return null;
+
+  const listPrice = priceInUsd(value.list_price);
+  const compareAt = listPrice !== null && listPrice > price ? listPrice : null;
+  const options = optionLabel(value.options);
+  const label =
+    options ?? asString(value.title) ?? asString(product.title) ?? "Standard";
+  return {
+    id,
+    label,
+    price,
+    compare_at_price: compareAt,
+    discount_percent: compareAt
+      ? Math.round(((compareAt - price) / compareAt) * 100)
+      : 0,
+    available: asRecord(value.availability)?.["available"] === true,
+    product_url: productUrl,
+    checkout_url: checkoutUrl,
+  };
+}
+
+export function normalizeUcpProducts(
+  values: unknown[],
+  country: string,
+): ProductGroup[] {
+  const groups: ProductGroup[] = [];
+
+  for (const value of values) {
+    const product = asRecord(value) as UcpProduct | null;
+    if (!product) continue;
+
+    const productId = asString(product.id);
+    const title = asString(product.title);
+    const description = getDescription(product.description);
+    const metadataText = getMetadataText(product.metadata);
+    const categoriesText = collectText(product.categories);
+    const baseText = [
+      title,
+      description,
+      ...metadataText,
+      ...categoriesText,
+    ].join(" ");
+    if (!productId || !title || !Array.isArray(product.variants)) {
+      continue;
+    }
+    const rawVariants = product.variants;
+    const imageUrl =
+      getImage(product.media) ??
+      rawVariants
+        .map((variant) => getImage(asRecord(variant)?.["media"]))
+        .find((image): image is string => image !== null);
+    if (!imageUrl) continue;
+
+    const sellerVariants = new Map<
+      string,
+      {
+        seller: UcpSeller;
+        variants: Array<{ source: UcpVariant; variant: Variant }>;
+      }
+    >();
+    for (const rawVariant of rawVariants) {
+      const source = asRecord(rawVariant) as UcpVariant | null;
+      if (!source) continue;
+      const seller = asRecord(source.seller) as UcpSeller | null;
+      if (!seller) continue;
+      const sellerName = asString(seller.name) ?? asString(seller.domain);
+      if (!sellerName) continue;
+      const variant = normalizeVariant(product, source);
+      if (!variant) continue;
+
+      const key = asString(seller.domain) ?? sellerName;
+      const entry = sellerVariants.get(key) ?? { seller, variants: [] };
+      entry.variants.push({ source, variant });
+      sellerVariants.set(key, entry);
+    }
+
+    const offers: Product[] = [];
+    for (const [sellerKey, sellerData] of sellerVariants) {
+      const sorted = sellerData.variants.sort(
+        (a, b) => a.variant.price - b.variant.price,
+      );
+      const first = sorted[0];
+      if (!first) continue;
+      const variants = sorted.map(({ variant }) => variant);
+      const primary = variants[0];
+      if (!primary) continue;
+      const variantText = sorted
+        .map(({ source }) => [
+          asString(source.title),
+          getDescription(source.description),
+          optionLabel(source.options),
+        ])
+        .flat()
+        .filter((item): item is string => item !== null)
+        .join(" ");
+      const searchableText = `${baseText} ${variantText}`;
+      const rating = productRating(
+        sorted.map(({ source }) => source.rating),
+        product.rating,
+      );
+      const sellerRecord = asRecord(sellerData.seller);
+      const policy = refundPolicy(sellerRecord?.["links"]);
+      const productUrl = primary.product_url;
+      const checkoutUrl = primary.checkout_url;
+
+      offers.push({
+        id: `${productId}:${sellerKey}`,
+        product_key: productId,
+        title,
+        merchant:
+          asString(sellerRecord?.["name"]) ??
+          asString(sellerRecord?.["domain"]) ??
+          "Shopify merchant",
+        category: inferCategory(searchableText),
+        style_tags: inferStyles(searchableText),
+        palette_tags: inferPalette(searchableText),
+        room_types: inferRoomTypes(searchableText),
+        indoor_outdoor: inferUseCase(searchableText),
+        price: primary.price,
+        compare_at_price: primary.compare_at_price ?? null,
+        discount_percent: primary.discount_percent ?? 0,
+        rating: rating.value,
+        review_count: rating.count,
+        quality_note: getQualityNote(product.metadata, description),
+        in_stock: variants.some((variant) => variant.available === true),
+        ships_to: [country],
+        image_url: imageUrl,
+        continue_url: checkoutUrl ?? productUrl ?? null,
+        product_url: productUrl ?? null,
+        return_policy: policy,
+        requires_review: false,
+        variants,
+      });
+    }
+
+    if (offers.length) groups.push({ product_key: productId, offers });
+  }
+
+  return groups;
+}
+
+function getUcpError(payload: UcpMcpResponse): string | null {
+  const errorMessage = asString(payload.error?.message);
+  if (errorMessage) return errorMessage;
+  if (payload.result?.isError !== true) return null;
+  return (
+    collectText(payload.result.content)[0] ??
+    "The UCP service returned an error."
+  );
+}
+
+export async function searchCatalog(
+  request: SearchCatalogRequest,
+): Promise<ProductGroup[]> {
+  const response = await fetch(UCP_ENDPOINT, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    signal: AbortSignal.timeout(25_000),
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      method: "tools/call",
+      id: 1,
+      params: {
+        name: "search_catalog",
+        arguments: {
+          meta: { "ucp-agent": { profile: UCP_AGENT_PROFILE } },
+          catalog: {
+            ...request.catalog,
+            pagination: { limit: UCP_RESULT_LIMIT },
+          },
+        },
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Shopify UCP catalog request failed (HTTP ${response.status}).`,
+    );
+  }
+
+  const payload = (await response.json()) as UcpMcpResponse;
+  const error = getUcpError(payload);
+  if (error) throw new Error(`Shopify UCP catalog search failed: ${error}`);
+
+  const products = payload.result?.structuredContent?.products;
+  if (!Array.isArray(products)) {
+    throw new Error("Shopify UCP returned an unexpected catalog response.");
+  }
+
+  return normalizeUcpProducts(
+    products,
+    request.catalog.filters.ships_to.country,
+  );
 }

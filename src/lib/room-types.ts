@@ -43,11 +43,26 @@ export type VibeRead = {
 };
 
 export type Goal = "specific" | "whole" | "decide";
+export const USERS = [
+  "just me",
+  "partner",
+  "kids",
+  "pets",
+  "guests",
+  "work from home",
+] as const;
+export type User = (typeof USERS)[number];
+
+export const FEELINGS = ["calm", "cozy", "bright", "social"] as const;
+export type Feeling = (typeof FEELINGS)[number];
+
 export type Brief = {
   goal: Goal;
   category: Category;
   budget: number;
   spaceWidth: number | null;
+  users: User[];
+  feelings: Feeling[];
   inStock: boolean;
   rated4: boolean;
   onSale: boolean;
@@ -69,6 +84,7 @@ export type Product = {
   id: string;
   product_key: string;
   title: string;
+  description?: string;
   merchant: string;
   category: Category;
   style_tags: Style[];

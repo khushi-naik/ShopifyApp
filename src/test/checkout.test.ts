@@ -46,6 +46,8 @@ const brief: Brief = {
   category: "seating",
   budget: 500,
   spaceWidth: 72,
+  users: [],
+  feelings: [],
   inStock: true,
   rated4: true,
   onSale: false,

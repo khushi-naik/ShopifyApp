@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { passesHardFilters, rankGroups } from "@/lib/ranking";
+import { passesHardFilters, rankGroups, scoreProduct } from "@/lib/ranking";
 import type { Brief, Product, ProductGroup, VibeRead } from "@/lib/room-types";
 
 const brief: Brief = {
@@ -8,6 +8,8 @@ const brief: Brief = {
   category: "seating",
   budget: 500,
   spaceWidth: null,
+  users: [],
+  feelings: [],
   inStock: true,
   rated4: true,
   onSale: false,
@@ -116,5 +118,28 @@ describe("room match ranking", () => {
     ];
 
     expect(rankGroups(groups, brief, vibe)).toEqual([]);
+  });
+
+  it("uses supported lifestyle keywords as evidence without changing unsupported or unselected scores", () => {
+    const supported = product({
+      description: "Upholstery is stain resistant and easy to clean.",
+    });
+    const unsupported = product({ description: "Solid wood frame." });
+    const withPets: Brief = { ...brief, users: ["pets"] };
+    const petsReason = "Listing mentions stain resistant, good for pets";
+
+    const baseScore = scoreProduct(supported, brief, vibe).score;
+    const petsMatch = scoreProduct(supported, withPets, vibe);
+    expect(petsMatch.reasons).toContain(petsReason);
+    expect(petsMatch.score).toBe(baseScore + 1);
+
+    const unsupportedMatch = scoreProduct(unsupported, withPets, vibe);
+    expect(unsupportedMatch.reasons).not.toContain(petsReason);
+    expect(unsupportedMatch.score).toBe(
+      scoreProduct(unsupported, brief, vibe).score,
+    );
+    expect(
+      scoreProduct(supported, { ...brief, users: [], feelings: [] }, vibe),
+    ).toMatchObject({ score: baseScore });
   });
 });

@@ -46,6 +46,10 @@ export const findMatches = createServerFn({ method: "POST" })
       `room colors: ${palette.join(", ")}`,
       brief.onSale ? "on sale" : "",
       brief.rated4 ? "rated at least 4 stars" : "",
+      brief.users.length ? `lived in by: ${brief.users.join(", ")}` : "",
+      brief.feelings.length
+        ? `desired feeling: ${brief.feelings.join(", ")}`
+        : "",
       ...(vibe.space_state === "empty" ? vibe.gaps : vibe.swaps).map(
         (item) => item.suggestion,
       ),

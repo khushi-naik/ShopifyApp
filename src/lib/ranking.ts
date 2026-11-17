@@ -5,8 +5,33 @@ import type {
   RankedMatch,
   VibeRead,
   Product,
+  Feeling,
+  User,
 } from "./room-types";
 import { nearestTag } from "./room-types";
+
+type Preference = User | Feeling;
+
+const PREFERENCE_KEYWORDS: Record<Preference, readonly string[]> = {
+  "just me": ["compact", "small space", "single seat"],
+  partner: ["loveseat", "two seat", "double"],
+  kids: ["kid friendly", "durable", "stain resistant", "washable", "rounded"],
+  pets: [
+    "pet friendly",
+    "scratch resistant",
+    "washable",
+    "stain resistant",
+    "performance fabric",
+  ],
+  guests: ["sleeper", "sofa bed", "guest", "extra seating"],
+  "work from home": ["desk", "ergonomic", "task lighting", "adjustable"],
+  cozy: ["plush", "soft", "warm", "boucle", "knit", "chunky"],
+  calm: ["neutral", "soft", "linen", "muted"],
+  bright: ["light", "white", "airy", "brass"],
+  social: ["seating", "modular", "sectional", "extendable"],
+};
+
+const FEELING_NAMES = new Set<string>(["calm", "cozy", "bright", "social"]);
 
 /** Categories the shopper needs, derived from the brief and the vibe read. */
 export function neededCategories(brief: Brief, vibe: VibeRead): Category[] {
@@ -58,6 +83,33 @@ export function scoreProduct(p: Product, brief: Brief, vibe: VibeRead) {
   const reasons: { text: string; weight: number }[] = [];
   let score = 0;
   const needed = neededCategories(brief, vibe);
+  const searchableText = [p.title, p.description, p.quality_note]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  const matchedPreferences = Array.from(
+    new Set<Preference>([...brief.users, ...brief.feelings]),
+  )
+    .map((preference) => ({
+      preference,
+      keyword: PREFERENCE_KEYWORDS[preference].find((word) =>
+        searchableText.includes(word),
+      ),
+    }))
+    .filter(
+      (match): match is { preference: Preference; keyword: string } =>
+        match.keyword !== undefined,
+    );
+
+  score += Math.min(matchedPreferences.length, 4);
+  for (const { preference, keyword } of matchedPreferences) {
+    reasons.push({
+      text: FEELING_NAMES.has(preference)
+        ? `Listing mentions ${keyword}, supports a ${preference} feel`
+        : `Listing mentions ${keyword}, good for ${preference}`,
+      weight: 3.75,
+    });
+  }
 
   if (needed.length && needed.includes(p.category)) {
     score += 3;

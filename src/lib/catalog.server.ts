@@ -490,6 +490,7 @@ export function normalizeUcpProducts(
         id: `${productId}:${sellerKey}`,
         product_key: productId,
         title,
+        description,
         merchant:
           asString(sellerRecord?.["name"]) ??
           asString(sellerRecord?.["domain"]) ??

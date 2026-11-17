@@ -13,7 +13,13 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { CATEGORIES, type Brief, type Goal } from "@/lib/room-types";
+import {
+  CATEGORIES,
+  FEELINGS,
+  USERS,
+  type Brief,
+  type Goal,
+} from "@/lib/room-types";
 import { money } from "@/lib/image-utils";
 
 export function BriefForm({
@@ -32,7 +38,7 @@ export function BriefForm({
   return (
     <Card className="animate-rise rounded-3xl">
       <CardHeader>
-        <CardTitle className="text-2xl">A few quick preferences</CardTitle>
+        <CardTitle className="text-2xl">A few quick questions</CardTitle>
       </CardHeader>
       <CardContent className="space-y-8">
         <div className="space-y-3">
@@ -126,8 +132,72 @@ export function BriefForm({
           />
         </div>
 
+        <div className="space-y-5">
+          <p className="text-sm text-muted-foreground">
+            Optional, helps us pick pieces that suit how you live.
+          </p>
+          <div className="space-y-3">
+            <Label className="text-base">3. Who uses this room?</Label>
+            <ToggleGroup
+              type="multiple"
+              value={brief.users}
+              onValueChange={(values) =>
+                set(
+                  "users",
+                  USERS.filter((user) => values.includes(user)),
+                )
+              }
+              className="flex flex-wrap gap-2"
+            >
+              {USERS.map((user) => (
+                <ToggleGroupItem
+                  key={user}
+                  value={user}
+                  variant="outline"
+                  className="h-auto rounded-full px-4 py-2 data-[state=on]:border-primary data-[state=on]:bg-accent"
+                >
+                  {user}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <Label className="text-base">4. How should it feel?</Label>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Pick up to two
+              </p>
+            </div>
+            <ToggleGroup
+              type="multiple"
+              value={brief.feelings}
+              onValueChange={(values) => {
+                if (values.length <= 2) {
+                  set(
+                    "feelings",
+                    FEELINGS.filter((feeling) => values.includes(feeling)),
+                  );
+                }
+              }}
+              className="flex flex-wrap gap-2"
+            >
+              {FEELINGS.map((feeling) => (
+                <ToggleGroupItem
+                  key={feeling}
+                  value={feeling}
+                  variant="outline"
+                  className="h-auto rounded-full px-4 py-2 data-[state=on]:border-primary data-[state=on]:bg-accent"
+                >
+                  {feeling}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
+        </div>
+
         <div className="space-y-3">
-          <Label className="text-base">3. Must-haves</Label>
+          <Label className="text-base">5. Must-haves</Label>
           <div className="grid gap-3 sm:grid-cols-2">
             {(
               [

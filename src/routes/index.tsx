@@ -31,6 +31,8 @@ const INITIAL_BRIEF: Brief = {
   category: "seating",
   budget: 500,
   spaceWidth: null,
+  users: [],
+  feelings: [],
   inStock: true,
   rated4: true,
   onSale: false,

@@ -16,10 +16,12 @@ import type { RankedMatch, Variant } from "@/lib/room-types";
 export function ProductCard({
   match,
   budget,
+  spaceWidth,
   onAdd,
 }: {
   match: RankedMatch;
   budget: number;
+  spaceWidth: number | null;
   onAdd: (v: Variant) => void;
 }) {
   const p = match.product;
@@ -79,6 +81,24 @@ export function ProductCard({
             <s className="text-sm text-muted-foreground">{money(compareAt)}</s>
           )}
         </div>
+        {spaceWidth !== null && (
+          <p
+            className={`rounded-lg px-3 py-2 text-sm font-medium ${
+              p.width === null
+                ? "bg-muted text-muted-foreground"
+                : p.width <= spaceWidth
+                  ? "bg-success/10 text-success"
+                  : "bg-destructive/10 text-destructive"
+            }`}
+            role="status"
+          >
+            {p.width === null
+              ? "Size not listed, check with seller"
+              : p.width <= spaceWidth
+                ? "Fits"
+                : "Too big for your space"}
+          </p>
+        )}
         <p className="flex items-center gap-1 text-sm">
           {p.rating !== null ? (
             <>

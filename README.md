@@ -65,6 +65,9 @@ npm run build
   indoor or outdoor use. Recommendations are filtered against those
   requirements, then ranked by room need, style, palette, rating, review count,
   value, quality details and discounts.
+- Optionally enter the available width in inches. Product cards and the
+  “Before you buy” checklist compare it with a listed product width; if a width
+  is unavailable, Room Match asks the shopper to check with the seller.
 - Product and seller data comes from Shopify's live UCP Global Catalog using
   the server-side JSON-RPC `search_catalog` tool. The app calls Shopify's
   catalog endpoint directly so it also works in the Cloudflare Worker runtime;

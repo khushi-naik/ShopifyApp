@@ -1,7 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { computeSession, shippingCost, type Address } from "@/lib/checkout";
-import type { CartLine, Product, Variant } from "@/lib/room-types";
+import {
+  beforeYouBuy,
+  computeSession,
+  shippingCost,
+  type Address,
+} from "@/lib/checkout";
+import type {
+  Brief,
+  CartLine,
+  Product,
+  Variant,
+  VibeRead,
+} from "@/lib/room-types";
 
 const address: Address = {
   name: "Sam Shopper",
@@ -21,6 +32,7 @@ const product: Product = {
   palette_tags: ["walnut"],
   room_types: ["living room"],
   indoor_outdoor: "indoor",
+  width: 60,
   price: 200,
   compare_at_price: null,
   discount_percent: 0,
@@ -37,6 +49,29 @@ const product: Product = {
 };
 const variant: Variant = { id: "variant-1", label: "Walnut", price: 200 };
 const line: CartLine = { product, variant, qty: 1 };
+const brief: Brief = {
+  goal: "specific",
+  category: "seating",
+  budget: 500,
+  spaceWidth: 72,
+  inStock: true,
+  rated4: true,
+  onSale: false,
+  setting: "indoor",
+};
+const vibe: VibeRead = {
+  room_type: "living room",
+  indoor_outdoor: "indoor",
+  space_state: "furnished",
+  primary_style: "Mid-Century Modern",
+  secondary_style: "Scandinavian",
+  palette_name: "Cream",
+  palette: [],
+  gaps: [],
+  keep: [],
+  swaps: [],
+  demo: true,
+};
 
 describe("checkout preparation", () => {
   it("calculates standard free shipping at the threshold and express shipping", () => {
@@ -64,5 +99,48 @@ describe("checkout preparation", () => {
 
   it("keeps an empty cart incomplete even when the delivery details are complete", () => {
     expect(computeSession([], address, "standard").status).toBe("incomplete");
+  });
+
+  it("warns about oversized and unknown widths, and skips the check without a space width", () => {
+    const tooWide: CartLine = {
+      ...line,
+      product: { ...product, id: "wide", title: "Wide sofa", width: 80 },
+    };
+    const unknownWidth: CartLine = {
+      ...line,
+      product: {
+        ...product,
+        id: "unknown",
+        title: "Unknown size",
+        width: null,
+      },
+    };
+    const check = beforeYouBuy(
+      [line, tooWide, unknownWidth],
+      vibe,
+      brief,
+      address,
+    ).find((item) => item.label === "Fits your space");
+
+    expect(check).toMatchObject({
+      ok: false,
+      detail:
+        "Too big: Wide sofa; Size not listed; check with seller: Unknown size",
+    });
+    expect(
+      beforeYouBuy([line], vibe, { ...brief, spaceWidth: null }, address).some(
+        (item) => item.label === "Fits your space",
+      ),
+    ).toBe(false);
+  });
+
+  it("marks the space check as passing when every known width fits", () => {
+    const check = beforeYouBuy([line], vibe, brief, address).find(
+      (item) => item.label === "Fits your space",
+    );
+    expect(check).toMatchObject({
+      ok: true,
+      detail: "All items fit within 72 inches",
+    });
   });
 });

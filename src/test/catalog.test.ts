@@ -24,6 +24,45 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+function normalizedWidth({
+  title = "Decor item",
+  description,
+  techSpecs,
+  variantLabel,
+}: {
+  title?: string;
+  description?: string;
+  techSpecs?: string;
+  variantLabel?: string;
+}): number | null {
+  const products = normalizeUcpProducts(
+    [
+      {
+        id: "gid://shopify/Product/width-test",
+        title,
+        description: description ? { plain: description } : undefined,
+        metadata: techSpecs ? { tech_specs: techSpecs } : undefined,
+        media: [{ type: "image", url: "https://cdn.example/item.jpg" }],
+        variants: [
+          {
+            id: "gid://shopify/ProductVariant/width-test",
+            title: variantLabel ?? "Standard",
+            options: variantLabel
+              ? [{ name: "Size", label: variantLabel }]
+              : [],
+            price: { amount: 10000, currency: "USD" },
+            availability: { available: true },
+            seller: { name: "Test Seller" },
+            url: "https://seller.example/products/item",
+          },
+        ],
+      },
+    ],
+    "US",
+  );
+  return products[0]?.offers[0]?.width ?? null;
+}
+
 describe("Shopify UCP catalog normalization", () => {
   it("creates seller-scoped offers with live prices, variants, links and available metadata", () => {
     const offers = normalizeUcpProducts(
@@ -94,6 +133,7 @@ describe("Shopify UCP catalog normalization", () => {
       palette_tags: ["beige"],
       room_types: ["living room"],
       indoor_outdoor: "indoor",
+      width: null,
       price: 120,
       compare_at_price: 150,
       discount_percent: 20,
@@ -145,6 +185,18 @@ describe("Shopify UCP catalog normalization", () => {
       review_count: null,
       indoor_outdoor: "unknown",
     });
+  });
+
+  it("extracts explicit width measurements and converts centimeters without guessing", () => {
+    expect(normalizedWidth({ title: 'Sofa 72"' })).toBe(72);
+    expect(normalizedWidth({ description: "Width: 72 in" })).toBe(72);
+    expect(normalizedWidth({ description: "W 72" })).toBe(72);
+    expect(normalizedWidth({ title: "Console table 72 inch" })).toBe(72);
+    expect(normalizedWidth({ techSpecs: "Width: 72 cm" })).toBe(28.3);
+    expect(normalizedWidth({ variantLabel: "72 x 36 x 30" })).toBe(72);
+    expect(normalizedWidth({ variantLabel: "72 x 36 x 30 cm" })).toBe(28.3);
+    expect(normalizedWidth({ description: "Height: 72 inches" })).toBeNull();
+    expect(normalizedWidth({ title: "Solid wood side table" })).toBeNull();
   });
 
   it("calls Shopify's UCP endpoint with catalog filters and surfaces failures", async () => {

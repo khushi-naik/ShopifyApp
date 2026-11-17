@@ -30,6 +30,7 @@ const INITIAL_BRIEF: Brief = {
   goal: "decide",
   category: "seating",
   budget: 500,
+  spaceWidth: null,
   inStock: true,
   rated4: true,
   onSale: false,
@@ -318,6 +319,7 @@ function Index() {
                       key={match.product.id}
                       match={match}
                       budget={brief.budget}
+                      spaceWidth={brief.spaceWidth}
                       onAdd={(variant) => addToCart(match.product, variant)}
                     />
                   ))}

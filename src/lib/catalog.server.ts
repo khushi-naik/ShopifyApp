@@ -301,6 +301,52 @@ function inferUseCase(text: string): Product["indoor_outdoor"] {
   return "unknown";
 }
 
+function measurementToInches(value: string, unit?: string): number | null {
+  const measurement = Number(value);
+  if (!Number.isFinite(measurement) || measurement <= 0) return null;
+  const normalizedUnit = unit?.toLowerCase();
+  const inches =
+    normalizedUnit === "cm" || normalizedUnit?.startsWith("centimeter")
+      ? measurement / 2.54
+      : measurement;
+  return Math.round(inches * 10) / 10;
+}
+
+function extractWidthInches(text: string): number | null {
+  const widthLabel =
+    /\b(?:width|w)\s*(?:(?:is)\s+|[:=]\s*)?(\d+(?:\.\d+)?)\s*(inch(?:es)?|in\b|cm|centimeters?|")?(?![\w])/i.exec(
+      text,
+    );
+  if (widthLabel?.[1]) {
+    return measurementToInches(widthLabel[1], widthLabel[2]);
+  }
+
+  const dimensions =
+    /\b(\d+(?:\.\d+)?)\s*(?:x|×)\s*\d+(?:\.\d+)?\s*(?:x|×)\s*\d+(?:\.\d+)?\s*(cm|centimeters?|inch(?:es)?|in\b|")?(?![\w])/i.exec(
+      text,
+    );
+  if (dimensions?.[1]) {
+    return measurementToInches(dimensions[1], dimensions[2]);
+  }
+
+  const explicitMeasurement =
+    /(\d+(?:\.\d+)?)\s*(inch(?:es)?|in\b|cm|centimeters?|")/gi;
+  for (const match of text.matchAll(explicitMeasurement)) {
+    const before = text.slice(0, match.index);
+    const after = text.slice(match.index + match[0].length);
+    if (
+      /\b(?:height|length|depth|tall|long|deep)\s*(?::|=|is)?\s*$/i.test(
+        before,
+      ) ||
+      /^\s*(?:high|tall|long|deep)\b/i.test(after)
+    ) {
+      continue;
+    }
+    if (match[1]) return measurementToInches(match[1], match[2]);
+  }
+  return null;
+}
+
 function productRating(values: unknown[], fallback: unknown) {
   const productRating = ratingInfo(fallback);
   const variantRatings = values
@@ -367,6 +413,9 @@ export function normalizeUcpProducts(
       ...metadataText,
       ...categoriesText,
     ].join(" ");
+    const productWidth = extractWidthInches(
+      [title, description, ...metadataText].join(" "),
+    );
     if (!productId || !title || !Array.isArray(product.variants)) {
       continue;
     }
@@ -420,6 +469,13 @@ export function normalizeUcpProducts(
         .flat()
         .filter((item): item is string => item !== null)
         .join(" ");
+      const primaryVariantText = [
+        asString(first.source.title),
+        getDescription(first.source.description),
+        optionLabel(first.source.options),
+      ]
+        .filter((item): item is string => item !== null)
+        .join(" ");
       const searchableText = `${baseText} ${variantText}`;
       const rating = productRating(
         sorted.map(({ source }) => source.rating),
@@ -443,6 +499,7 @@ export function normalizeUcpProducts(
         palette_tags: inferPalette(searchableText),
         room_types: inferRoomTypes(searchableText),
         indoor_outdoor: inferUseCase(searchableText),
+        width: productWidth ?? extractWidthInches(primaryVariantText),
         price: primary.price,
         compare_at_price: primary.compare_at_price ?? null,
         discount_percent: primary.discount_percent ?? 0,

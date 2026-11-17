@@ -47,6 +47,7 @@ export type Brief = {
   goal: Goal;
   category: Category;
   budget: number;
+  spaceWidth: number | null;
   inStock: boolean;
   rated4: boolean;
   onSale: boolean;
@@ -74,6 +75,7 @@ export type Product = {
   palette_tags: string[];
   room_types: string[];
   indoor_outdoor: "indoor" | "outdoor" | "both" | "unknown";
+  width: number | null;
   price: number;
   compare_at_price: number | null;
   discount_percent: number;
